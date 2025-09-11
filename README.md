@@ -1,7 +1,9 @@
 # EFx Landing
 
 Landing Page source code (Vite + React + Tailwind)
+
 <🦀/> EFx — Declarative UI for Rust & egui
+
 Write XML-like templates in Rust and compile them into egui calls. Less boilerplate, more focus.
 
 ## Scripts
