@@ -1,0 +1,218 @@
+# EFx: Rust XML Template Engine for egui
+
+## 1. What is EFx?
+EFx is a declarative UI template engine for Rust. It uses a procedural macro (`efx!`) to transform compact, XML-like markup into zero-cost method calls for the `egui` framework (and wrappers like `eframe` or `bevy_egui`).
+
+**Core Philosophy for AI Generation:**
+- **No `eval`:** There is no runtime evaluation. All `{expr}` interpolations are strictly type-checked at compile-time by the Rust compiler.
+- **Easy as HTML, Safe cause Rust:** It reduces boilerplate (closures and imperative builder patterns) while maintaining Rust's memory safety guarantees.
+- **First-Class AI Support:** The syntax is designed to be easily predictable for LLMs familiar with XML/HTML, mapping UI concepts cleanly to `egui` widgets.
+
+## 2. Quickstart & Setup
+
+**A) eframe integration:**
+```toml
+[dependencies]
+efx    = "0.7"
+eframe = "0.33"
+
+```
+
+```rust
+use eframe::egui;
+use efx::efx;
+
+egui::CentralPanel::default().show(ctx, |ui| {
+    efx!(ui, r#"<Column><Label>Hello, EFx</Label><Separator/></Column>"#);
+});
+
+```
+
+**B) Bevy + bevy_egui integration:**
+
+```toml
+[dependencies]
+efx       = "0.7"
+bevy      = "0.16"
+bevy_egui = "0.36"
+
+```
+
+```rust
+use bevy_egui::{EguiPlugin, EguiContexts};
+use bevy_egui::egui as egui; // Tip: alias to avoid version mismatches
+use efx::efx;
+
+bevy_egui::egui::Window::new("EFx").show(egui_ctx.ctx_mut(), |ui| {
+    efx!(ui, r#"<Row><Label>It works</Label></Row>"#);
+});
+
+```
+
+## 3. Rules for LLMs & Code Generation
+
+When generating UI code for an EFx project, you MUST strictly follow these directives:
+
+* **Primary Macro:** Always use the `efx!` macro for constructing UI instead of imperative `ui.*` method chains.
+* **Macro Signature:** The strict format is `efx!(ui, r#"<Tags>...</Tags>"#);`. Always use Rust raw string literals (`r#"..."#`) to avoid escaping quotes.
+* **Case Sensitivity:** Tag names are strictly PascalCase/CamelCase (e.g., `<Label>`, `<TextField/>`).
+* **Attributes Naming:** ALWAYS use `snake_case` for attribute names (e.g., `stroke_width`, `max_height`). Do not use camelCase.
+* **Color Format:** Colors must be strictly in 6 or 8 hex digits (`#RRGGBB` or `#RRGGBBAA`). Short formats (`#RGB`) are NOT supported.
+* **Expression Interpolation (`{expr}`):**
+* Use `{...}` ONLY inside textual tags like `<Label>` or `<Button>`. Do not use them as standalone structural elements.
+* Any expression inside `{}` MUST implement the `std::fmt::Display` trait.
+* To render literal braces in text, escape them by doubling: `{{` and `}}`.
+
+
+* **Anti-Patterns to avoid `compile_error!`:**
+* Never invent attributes. Only use explicitly documented attributes.
+* Never forget self-closing slashes for elements without children (e.g., `<Separator/>`, `<TextField/>`).
+
+
+
+## 4. Tag Reference Directory
+
+Below is the exhaustive list of currently supported EFx tags and their attributes.
+
+### Typography & Text
+
+* `<Label>`: Standard text widget. *Children:* Text and `{expr}` only.
+* *Attributes:* `color` (#RRGGBB[AA]), `size` (f32), `bold`, `italic`, `underline`, `strike`, `monospace`, `wrap` (all bool).
+
+
+* `<Heading>`: Text heading (h1-h6). *Children:* Text and `{expr}` only.
+* *Attributes:* `level` (1..6, default: 1), `size` (f32), `color` (#RRGGBB[AA]), `tooltip` (string).
+
+
+* `<Hyperlink>`: Clickable link. *Children:* Text and `{expr}` only.
+* *Attributes:* `url` (string, REQUIRED), `open_external` (bool), `color` (#RRGGBB[AA]), `underline` (bool), `tooltip` (string).
+
+
+
+### Layout & Containers
+
+* `<Column>`: Vertical stack.
+* *Attributes:* `align` (left|center|right), `gap` (f32), `padding` (f32).
+
+
+* `<Row>`: Horizontal stack.
+* *Attributes:* `align` (top|center|bottom), `gap` (f32), `wrap` (bool), `padding` (f32).
+
+
+* `<Separator/>`: Self-closing divider. NO CHILDREN ALLOWED.
+* *Attributes:* `space`, `space_before`, `space_after` (f32).
+
+
+* `<ScrollArea>`: Scrollable container.
+* *Attributes:* `axis` (vertical|horizontal|both), `always-show` (bool), `max-height`, `max-width` (f32), `id` (string), `bottom`, `right` (bool).
+
+
+* `<Resize>`: User-resizable container.
+* *Attributes:* `id` (string, REQUIRED), `resizable` (bool), `default-width`, `default-height`, `min-width`, `min-height`, `max-width`, `max-height` (f32).
+
+
+* `<Grid>` & `<GridBreak/>`: Row-major layout. Text nodes NOT allowed at root.
+* *Attributes (<Grid>):* `columns` (int, REQUIRED), `striped` (bool), `spacing-x`, `spacing-y`, `cell-padding` (f32), `cell-align` (left|center|right), `id` (string).
+
+
+* `<Table>`, `<Tr>`, `<Td>`: Lightweight static table. Structure MUST be `<Table>` -> `<Tr>` -> `<Td>`.
+* *Attributes (<Table>):* `columns` (int, REQUIRED), `striped` (bool), `spacing-x`, `spacing-y`, `cell-padding` (f32), `cell-align` (left|center|right), `id` (string). (colspan/rowspan NOT supported).
+
+
+
+### Panels & Windows
+
+* `<Panel>`: Lightweight frame container.
+* *Attributes:* `frame` (bool), `fill` (#RRGGBB[AA]), `stroke-width` (f32), `stroke-color` (#RRGGBB[AA]), `padding*`, `margin*` (f32), `id` (string).
+
+
+* `<TopPanel>` / `<BottomPanel>`: Docked window panels.
+* *Attributes:* `id` (string, REQUIRED), `default-height`, `min-height`, `max-height` (f32), `resizable` (bool). Plus all styling from `<Panel>`.
+
+
+* `<Window>`: Independent floating window.
+* *Attributes:* `title` (string, REQUIRED), `id` (string), `open` ({expr_bool} binding), `movable`, `resizable`, `collapsible`, `title-bar`, `enabled`, `constrain`, `auto-sized` (bool), `default-x/y`, `pos-x/y`, `anchor-x/y`, `default-width/height`, `min-width/height`, `max-width/height` (f32), `anchor-h` (left|center|right), `anchor-v` (top|center|bottom), plus frame/styling attributes like `<Panel>`.
+
+
+
+### Navigation & State Containers
+
+* `<Tabs>` & `<Tab>`: Tabbed container. Structure MUST be `<Tabs>` -> `<Tab>`.
+* *Attributes (<Tabs>):* `active` (expr, REQUIRED. e.g. `active="self.current_tab"`), `gap` (f32).
+* *Attributes (<Tab>):* `id` (string), `title` (string, defaults to id), `enabled` (bool).
+
+
+
+### Controls & Interactive
+
+* `<Button>`: Clickable button. RETURNS `Resp` at root level.
+* *Children:* Text and `{expr}` only.
+* *Attributes:* `fill` (#RRGGBB[AA]), `rounding`, `min_width`, `min_height` (f32), `frame`, `enabled` (bool), `tooltip` (string).
+
+
+* `<TextField/>`: Text input. Self-closing. NO CHILDREN ALLOWED.
+* *Attributes:* `value` (expr string lvalue, REQUIRED. e.g. `value="state.name"`), `hint` (string), `password`, `multiline` (bool), `width` (f32).
+
+
+
+### Media
+
+* `<Image>`: Renders a texture or bitmap. Self-closing.
+* *Attributes (Source - Mutually Exclusive):* `texture` (Rust expr) OR `src` (string path/URI).
+* *Attributes:* `width`, `height`, `max-width`, `max-height`, `rounding` (f32), `maintain-aspect`, `clickable` (bool), `tint`, `bg-fill` (#RRGGBB[AA]), `id`, `tooltip` (string).
+
+
+
+## 5. Golden Examples
+
+### Example 1: Interactive Elements & State Handling
+
+Notice that `<Button>` is placed at the root of its own `efx!` macro call to capture the `Resp` object.
+
+```rust
+// Layout macro
+efx!(ui, r#"
+  <Column gap="10" padding="6" align="center">
+    <Label size="18">Settings</Label>
+    <Separator/>
+  </Column>
+"#);
+
+// Button macro (returns Resp)
+let save_btn = efx!(ui, r#"<Button rounding="8" tooltip="Save changes" fill="#00FF00">Save</Button>"#);
+
+if save_btn.clicked() {
+    // handle click
+}
+
+```
+
+### Example 2: Complex Grid Layout
+
+Notice the use of `<GridBreak/>` to explicitly start new rows.
+
+```rust
+efx!(ui, r#"
+  <Grid columns="2" spacing-x="8" spacing-y="4" cell-align="left" cell-padding="4" striped="true" id="user_info_grid">
+    <Label>Name:</Label>
+    <Label>{user.name}</Label>
+    <GridBreak/>
+    <Label>Role:</Label>
+    <Label>{user.role}</Label>
+  </Grid>
+"#);
+
+```
+
+### Example 3: Data Binding in Inputs
+
+```rust
+efx!(ui, r#"
+  <Column gap="4">
+    <Label>Enter Username:</Label>
+    <TextField value="state.username" hint="Username" width="200" />
+    <TextField value="state.password" hint="Password" password="true" width="200" />
+  </Column>
+"#);
+
+```
