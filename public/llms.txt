@@ -62,6 +62,8 @@ When generating UI code for an EFx project, you MUST strictly follow these direc
 * Use `{...}` ONLY inside textual tags like `<Label>` or `<Button>`. Do not use them as standalone structural elements.
 * Any expression inside `{}` MUST implement the `std::fmt::Display` trait.
 * To render literal braces in text, escape them by doubling: `{{` and `}}`.
+* Macro Signature & Quotes: The strict format is efx!(ui, r#"<Tags>...</Tags>"#);.
+* CRITICAL RULE: Inside the efx! macro, ALWAYS use single quotes (') for tag attributes (e.g., fill='#FFFFFF', padding='16'). NEVER use double quotes (") for attributes, as combinations like "# will prematurely break Rust's raw string parser.
 
 
 * **Anti-Patterns to avoid `compile_error!`:**
